@@ -2,7 +2,7 @@ name: Daily SmartChip Crawler
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # UTC 기준 → 한국 새벽 3시
+    - cron: '0 18 * * *'  # UTC 기준 → 한국시간 새벽 3시
   workflow_dispatch:
 
 jobs:
@@ -30,6 +30,6 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add output/*
+          git add -f output/*.json
           git commit -m "Update races json" || echo "No changes to commit"
           git push
