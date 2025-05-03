@@ -1,0 +1,35 @@
+name: Daily SmartChip Crawler
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # UTC 기준 → 한국 새벽 3시
+  workflow_dispatch:
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run crawler
+        run: |
+          python utils/races_crawler.py
+
+      - name: Commit and push results
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add output/*
+          git commit -m "Update races json" || echo "No changes to commit"
+          git push
