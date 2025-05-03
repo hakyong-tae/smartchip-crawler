@@ -1,5 +1,6 @@
-output/*
-!.gitignore
+output/
+!output/.gitkeep
+!output/*.json
 __pycache__/
 *.pyc
 venv/
