@@ -42,6 +42,7 @@ jobs:
 
       - name: Run crawler
         run: |
+          set -e
           python races_crawler.py
 
       - name: Commit and push if there are changes
