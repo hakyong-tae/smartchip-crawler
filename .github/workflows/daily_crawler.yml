@@ -43,12 +43,15 @@ jobs:
         run: |
           set -e
           python utils/races_crawler.py
-          
+
+
       - name: Commit and push if there are changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add output/*.json
+          git add -f output/*.json
           git commit -m "[Auto] Update SmartChip events json `date '+%Y-%m-%d %H:%M'`" || echo "No changes to commit"
           git push
+
+
 
