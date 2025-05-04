@@ -31,8 +31,7 @@ jobs:
       - name: Install ChromeDriver
         run: |
           sudo apt install -y chromium-chromedriver
-          sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
-
+  
       - name: Cleanup old SmartChip JSON (Keep today only)
         run: |
           TODAY=$(date -u +"%Y-%m-%d" -d "+9 hours")
