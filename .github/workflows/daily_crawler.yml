@@ -39,11 +39,10 @@ jobs:
           find output -type f -name "events_*.json" ! -name "events_${TODAY}.json" -exec rm {} +
           echo "Old SmartChip JSON files removed."
 
-
       - name: Run crawler
         run: |
           set -e
-          python ./races_crawler.py
+          python utils/races_crawler.py
           
       - name: Commit and push if there are changes
         run: |
