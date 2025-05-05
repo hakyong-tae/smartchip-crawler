@@ -34,10 +34,10 @@ jobs:
   
       - name: Cleanup old SmartChip JSON (Keep today only)
         run: |
-          TODAY=$(date -u +"%Y-%m-%d" -d "+9 hours")
+          TODAY=$(python3 -c "from datetime import datetime, timezone, timedelta; print((datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d'))")
           echo "Today's file: events_${TODAY}.json"
           find output -type f -name "events_*.json" ! -name "events_${TODAY}.json" -exec rm {} +
-          echo "Old SmartChip JSON files removed."
+
 
       - name: Run crawler
         run: |
