@@ -32,11 +32,12 @@ jobs:
         run: |
           sudo apt install -y chromium-chromedriver
   
+    
       - name: Cleanup old SmartChip JSON (Keep today only)
         run: |
-          TODAY=$(python3 -c "from datetime import datetime, timezone, timedelta; print(((datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=9)))) + timedelta(days=1)).strftime('%Y-%m-%d'))")
-          echo "Today's file: events_${TODAY}.json"
-          find output -type f -name "events_*.json" ! -name "events_${TODAY}.json" -exec rm {} +
+          CLEANUP_DATE=$(python3 -c "from datetime import datetime, timezone, timedelta; print((datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d'))")
+          echo "Cleanup target date: $CLEANUP_DATE"
+          find output -type f -name "events_*.json" ! -name "events_${CLEANUP_DATE}.json" -exec rm {} +
 
 
       - name: Run crawler
