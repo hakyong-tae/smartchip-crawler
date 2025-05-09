@@ -31,20 +31,23 @@ jobs:
       - name: Install ChromeDriver
         run: |
           sudo apt install -y chromium-chromedriver
-  
-    
+
+      - name: Calculate KST date
+        id: date
+        run: echo "value=$(TZ=Asia/Seoul date '+%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
       - name: Cleanup old SmartChip JSON (Keep today only)
         run: |
-          CLEANUP_DATE=$(python3 -c "from datetime import datetime, timezone, timedelta; print((datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d'))")
+          CLEANUP_DATE="${{ steps.date.outputs.value }}"
           echo "Cleanup target date: $CLEANUP_DATE"
           find output -type f -name "events_*.json" ! -name "events_${CLEANUP_DATE}.json" -exec rm {} +
-
 
       - name: Run crawler
         run: |
           set -e
-          python utils/races_crawler.py
-
+          CRAWL_DATE="${{ steps.date.outputs.value }}"
+          echo "Running crawler for date: $CRAWL_DATE"
+          python utils/races_crawler.py --date "$CRAWL_DATE"
 
       - name: Commit and push if there are changes
         run: |
@@ -53,6 +56,3 @@ jobs:
           git add -f output/*.json
           git commit -m "[Auto] Update SmartChip events json `date '+%Y-%m-%d %H:%M'`" || echo "No changes to commit"
           git push
-
-
-
