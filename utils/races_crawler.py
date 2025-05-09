@@ -1,6 +1,8 @@
+import argparse
 import datetime
 import json
 import os
+import pytz
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -60,6 +62,16 @@ def fetch_competition(usedata_code):
         return None
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--date', type=str, default=None)
+    args = parser.parse_args()
+
+    if args.date:
+        save_date = args.date
+    else:
+        kst = pytz.timezone('Asia/Seoul')
+        save_date = datetime.datetime.now(kst).date().isoformat()
+
     if os.path.exists(LAST_EVENT_FILE):
         with open(LAST_EVENT_FILE, "r") as f:
             start_code = int(f.read().strip())
@@ -90,8 +102,7 @@ def main():
     if collected_events:
         save_dir = "output"
         os.makedirs(save_dir, exist_ok=True)
-        today = datetime.date.today().isoformat()
-        save_path = os.path.join(save_dir, f"events_{today}.json")
+        save_path = os.path.join(save_dir, f"events_{save_date}.json")
 
         with open(save_path, "w", encoding="utf-8") as f:
             json.dump(collected_events, f, ensure_ascii=False, indent=2)
