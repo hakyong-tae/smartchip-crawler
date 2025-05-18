@@ -1,58 +1,27 @@
-name: Daily SmartChip Crawler
+name: Daily SmartChip Race Crawler
 
 on:
   schedule:
-    - cron: '0 16 * * *' # 매일 KST 새벽 1시 (UTC 16시)
-  workflow_dispatch:
+    - cron: '0 2 * * *'  # 매일 오전 2시 UTC
+  workflow_dispatch:     # 수동 실행 가능
 
 jobs:
   crawl:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
 
-      - name: Install Chrome
-        run: |
-          sudo apt update
-          sudo apt install -y google-chrome-stable
-
-      - name: Install ChromeDriver
-        run: |
-          sudo apt install -y chromium-chromedriver
-
-      - name: Calculate KST date
-        id: date
-        run: echo "value=$(TZ=Asia/Seoul date '+%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-
-      - name: Cleanup old SmartChip JSON (Keep today only)
-        run: |
-          CLEANUP_DATE="${{ steps.date.outputs.value }}"
-          echo "Cleanup target date: $CLEANUP_DATE"
-          find output -type f -name "events_*.json" ! -name "events_${CLEANUP_DATE}.json" -exec rm {} +
-
-      - name: Run crawler
-        run: |
-          set -e
-          CRAWL_DATE="${{ steps.date.outputs.value }}"
-          echo "Running crawler for date: $CRAWL_DATE"
-          python utils/races_crawler.py --date "$CRAWL_DATE"
-
-      - name: Commit and push if there are changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -f output/*.json
-          git commit -m "[Auto] Update SmartChip events json `date '+%Y-%m-%d %H:%M'`" || echo "No changes to commit"
-          git push
+    - name: Run race crawler
+      run: |
+        python utils/races_crawler.py
