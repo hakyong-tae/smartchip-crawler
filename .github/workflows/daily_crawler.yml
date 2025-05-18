@@ -2,8 +2,8 @@ name: Daily SmartChip Race Crawler
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 KST (2시 UTC)
-  workflow_dispatch:
+    - cron: '0 2 * * *'  # 매일 오전 11시 (KST)
+  workflow_dispatch:      # 수동 실행도 가능
 
 jobs:
   crawl:
@@ -13,10 +13,10 @@ jobs:
     - name: 📦 Checkout repository
       uses: actions/checkout@v3
 
-    - name: 📆 Set CURRENT_DATE env
+    - name: 📆 Set CURRENT_DATE environment variable
       run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
-    - name: 🧹 Delete old JSON files
+    - name: 🧹 Delete old events_*.json files
       run: rm -f events_*.json || true
 
     - name: 🐍 Set up Python
@@ -28,13 +28,12 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: 🚀 Run race crawler
+    - name: 🚀 Run SmartChip crawler
       run: |
         python utils/races_crawler.py ${{ env.CURRENT_DATE }}
-        
-    - name: 💾 Upload today's JSON
-      uses: actions/upload-artifact@f640b9f7aaef6b7e23255d93d6cfdb6d48d2ea1d
+
+    - name: 💾 Upload today's result
+      uses: actions/upload-artifact@v3
       with:
         name: smartchip-events-${{ env.CURRENT_DATE }}
         path: events_${{ env.CURRENT_DATE }}.json
-
