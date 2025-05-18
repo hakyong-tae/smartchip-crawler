@@ -32,8 +32,9 @@ jobs:
       run: |
         python utils/races_crawler.py ${{ env.CURRENT_DATE }}
         
-    - name: 💾 Upload today's result
-      uses: actions/upload-artifact@v3.1.3
+    - name: 💾 Upload today's JSON
+      uses: actions/upload-artifact@f640b9f7aaef6b7e23255d93d6cfdb6d48d2ea1d
       with:
         name: smartchip-events-${{ env.CURRENT_DATE }}
         path: events_${{ env.CURRENT_DATE }}.json
+
