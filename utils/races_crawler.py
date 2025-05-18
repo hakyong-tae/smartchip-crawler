@@ -1,118 +1,71 @@
-import argparse
-import datetime
+import requests
 import json
 import os
-import pytz
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import time
+from bs4 import BeautifulSoup
 
-LAST_EVENT_FILE = "last_event_id.txt"
+# ===== 설정 =====
+STATE_FILE = "last_checked_id.json"
+DEFAULT_START_ID = 85
+MAX_SUCCESS = 7
+MAX_FAIL = 10
+RACE_URL_TEMPLATE = "https://www.smartchip.co.kr/web/race/{}/record.jsp"
 
-def fetch_competition(usedata_code):
+# ===== 상태 불러오기 / 저장 =====
+def load_last_checked_id():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            return json.load(f).get("last_checked_id", DEFAULT_START_ID)
+    return DEFAULT_START_ID
+
+def save_last_checked_id(race_id):
+    with open(STATE_FILE, "w") as f:
+        json.dump({"last_checked_id": race_id}, f)
+
+# ===== 단일 대회 기록 조회 가능 여부 판별 =====
+def is_race_valid(race_id):
     try:
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
+        url = RACE_URL_TEMPLATE.format(race_id)
+        print(f"🔍 Checking race_id {race_id}... ", end="")
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
 
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=options)
-
-        url = f"https://smartchip.co.kr/Search_Ballyno.html?usedata={usedata_code}"
-        driver.get(url)
-
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, 'textfitted'))
-        )
-
-        title_element = driver.find_element(By.CLASS_NAME, 'textfitted')
-        competition_name = title_element.text.strip()
-
-        list_items = driver.find_elements(By.CSS_SELECTOR, 'div.list_box li')
-
-        competition_date = "정보 없음"
-        competition_place = "정보 없음"
-
-        for item in list_items:
-            text = item.text.strip()
-            if text.startswith("일시"):
-                competition_date = text.replace("일시 :", "").strip()
-            elif text.startswith("장소"):
-                competition_place = text.replace("장소 :", "").strip()
-
-        driver.quit()
-
-        if not competition_name:
-            return None
-
-        return {
-            "usedata": usedata_code,
-            "대회명": competition_name,
-            "대회일자": competition_date,
-            "대회장소": competition_place
-        }
-
+        soup = BeautifulSoup(resp.text, "html.parser")
+        if "기록조회" in soup.text or "기록 검색" in soup.text or "Record" in soup.text:
+            print("✅ Valid race")
+            return True
+        else:
+            print("❌ Not valid")
+            return False
     except Exception as e:
-        print(f"Error fetching usedata={usedata_code}: {e}")
-        return None
+        print(f"⚠️ Error: {e}")
+        return False
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--date', type=str, default=None)
-    args = parser.parse_args()
+# ===== 메인 크롤링 루프 =====
+def crawl_races():
+    start_id = load_last_checked_id()
+    print(f"🚀 Starting crawl from race_id: {start_id}")
 
-    if args.date:
-        save_date = args.date
-    else:
-        kst = pytz.timezone('Asia/Seoul')
-        save_date = datetime.datetime.now(kst).date().isoformat()
-
-    if os.path.exists(LAST_EVENT_FILE):
-        with open(LAST_EVENT_FILE, "r") as f:
-            start_code = int(f.read().strip())
-    else:
-        start_code = 202550000060  # 최초 시작
-
-    max_success = 7
-    max_fail = 10
     success_count = 0
     fail_count = 0
-    collected_events = []
 
-    while success_count < max_success and fail_count < max_fail:
-        print(f"Checking usedata={start_code}...")
-        data = fetch_competition(start_code)
+    for race_id in range(start_id, 10000):
+        is_valid = is_race_valid(race_id)
+        time.sleep(1.0)  # 서버 부하 방지 (1초 대기)
 
-        if data:
-            print(f"✅ Event Found: {data['대회명']}")
-            collected_events.append(data)
+        if is_valid:
             success_count += 1
-            fail_count = 0
+            if success_count >= MAX_SUCCESS:
+                save_last_checked_id(start_id + 1)
+                print(f"✅ Success limit reached ({MAX_SUCCESS}). Next start_id will be {start_id + 1}.")
+                break
         else:
-            print("❓ No usable event")
             fail_count += 1
+            if fail_count >= MAX_FAIL:
+                save_last_checked_id(start_id)  # 실패 시 같은 start_id 유지
+                print(f"🚫 Fail limit reached ({MAX_FAIL}). Will retry from {start_id} next time.")
+                break
 
-        start_code += 1
-
-    if collected_events:
-        save_dir = "output"
-        os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, f"events_{save_date}.json")
-
-        with open(save_path, "w", encoding="utf-8") as f:
-            json.dump(collected_events, f, ensure_ascii=False, indent=2)
-
-        print(f"\n📦 Saved {len(collected_events)} events to {save_path}")
-    else:
-        print("\n⚠️ No events collected, nothing saved.")
-
-    with open(LAST_EVENT_FILE, "w") as f:
-        f.write(str(start_code))
-
+# ===== 실행 =====
 if __name__ == "__main__":
-    main()
+    crawl_races()
