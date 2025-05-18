@@ -1,71 +1,90 @@
-import requests
-import json
+import sys
 import os
+import json
+import requests
 import time
-from bs4 import BeautifulSoup
+from datetime import datetime
 
-# ===== 설정 =====
-STATE_FILE = "last_checked_id.json"
 DEFAULT_START_ID = 85
-MAX_SUCCESS = 7
-MAX_FAIL = 10
-RACE_URL_TEMPLATE = "https://www.smartchip.co.kr/web/race/{}/record.jsp"
+SUCCESS_LIMIT = 7
+FAIL_LIMIT = 10
 
-# ===== 상태 불러오기 / 저장 =====
 def load_last_checked_id():
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
+    path = "output/last_checked_id.json"
+    if os.path.exists(path):
+        with open(path, "r") as f:
             return json.load(f).get("last_checked_id", DEFAULT_START_ID)
     return DEFAULT_START_ID
 
 def save_last_checked_id(race_id):
-    with open(STATE_FILE, "w") as f:
+    os.makedirs("output", exist_ok=True)
+    with open("output/last_checked_id.json", "w") as f:
         json.dump({"last_checked_id": race_id}, f)
 
-# ===== 단일 대회 기록 조회 가능 여부 판별 =====
-def is_race_valid(race_id):
-    try:
-        url = RACE_URL_TEMPLATE.format(race_id)
-        print(f"🔍 Checking race_id {race_id}... ", end="")
-        resp = requests.get(url, timeout=5)
-        resp.raise_for_status()
+def build_usedata(race_id: int, base_date: str):
+    dt = datetime.strptime(base_date, "%Y-%m-%d")
+    yyyymm = dt.strftime("%Y%m")
+    return f"{yyyymm}0000{str(race_id).zfill(3)}"
 
-        soup = BeautifulSoup(resp.text, "html.parser")
-        if "기록조회" in soup.text or "기록 검색" in soup.text or "Record" in soup.text:
+def is_race_valid(race_id: int, base_date: str):
+    try:
+        usedata = build_usedata(race_id, base_date)
+        url = f"https://smartchip.co.kr/Search_Ballyno.html?usedata={usedata}"
+        print(f"🔍 Checking usedata={usedata} → {url}")
+        res = requests.get(url, timeout=5)
+        res.raise_for_status()
+
+        if "기록조회" in res.text or "기록 검색" in res.text or "bib number" in res.text:
             print("✅ Valid race")
-            return True
+            return {
+                "race_id": race_id,
+                "usedata": usedata,
+                "url": url
+            }
         else:
             print("❌ Not valid")
-            return False
+            return None
     except Exception as e:
         print(f"⚠️ Error: {e}")
-        return False
+        return None
 
-# ===== 메인 크롤링 루프 =====
-def crawl_races():
+def crawl_races(base_date: str):
     start_id = load_last_checked_id()
-    print(f"🚀 Starting crawl from race_id: {start_id}")
+    print(f"\n🚀 Starting crawl from race_id: {start_id}")
 
     success_count = 0
     fail_count = 0
+    race_list = []
 
     for race_id in range(start_id, 10000):
-        is_valid = is_race_valid(race_id)
-        time.sleep(1.0)  # 서버 부하 방지 (1초 대기)
+        result = is_race_valid(race_id, base_date)
+        time.sleep(1.0)  # 예의상 1초 대기
 
-        if is_valid:
+        if result:
+            race_list.append(result)
             success_count += 1
-            if success_count >= MAX_SUCCESS:
+            if success_count >= SUCCESS_LIMIT:
                 save_last_checked_id(start_id + 1)
-                print(f"✅ Success limit reached ({MAX_SUCCESS}). Next start_id will be {start_id + 1}.")
+                print(f"✅ Success limit reached ({SUCCESS_LIMIT}). Next start_id = {start_id + 1}")
                 break
         else:
             fail_count += 1
-            if fail_count >= MAX_FAIL:
-                save_last_checked_id(start_id)  # 실패 시 같은 start_id 유지
-                print(f"🚫 Fail limit reached ({MAX_FAIL}). Will retry from {start_id} next time.")
+            if fail_count >= FAIL_LIMIT:
+                save_last_checked_id(start_id)
+                print(f"🚫 Fail limit reached ({FAIL_LIMIT}). Will retry from {start_id} next time.")
                 break
 
-# ===== 실행 =====
+    # 저장
+    output_filename = f"output/events_{base_date}.json"
+    os.makedirs("output", exist_ok=True)
+    with open(output_filename, "w", encoding="utf-8") as f:
+        json.dump(race_list, f, indent=2, ensure_ascii=False)
+    print(f"\n💾 Saved {len(race_list)} races to {output_filename}")
+
 if __name__ == "__main__":
-    crawl_races()
+    if len(sys.argv) < 2:
+        print("❗ Usage: python races_crawler.py YYYY-MM-DD")
+        sys.exit(1)
+
+    base_date = sys.argv[1]  # e.g., '2025-05-18'
+    crawl_races(base_date)
