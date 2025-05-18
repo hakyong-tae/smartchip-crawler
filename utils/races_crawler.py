@@ -2,7 +2,7 @@ name: Daily SmartChip Race Crawler
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 (KST)
+    - cron: '0 2 * * *'  # 매일 오전 11시 KST
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   crawl:
-    runs-on: ubuntu-22.04  # Ubuntu 22.04 환경은 안정성 좋음
+    runs-on: ubuntu-22.04
 
     steps:
     - name: 📦 Checkout repository
