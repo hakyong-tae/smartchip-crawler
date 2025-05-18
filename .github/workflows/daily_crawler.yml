@@ -2,19 +2,23 @@ name: Daily SmartChip Race Crawler
 
 on:
   schedule:
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+    - cron: '0 2 * * *'  # 매일 오전 11시 KST (2시 UTC)
+  workflow_dispatch:      # 수동 실행도 허용
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   crawl:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04  # 최신 보안 정책 우회
 
     steps:
     - name: 📦 Checkout repository
       uses: actions/checkout@v3
 
-    - name: 📆 Set CURRENT_DATE environment variable
-      run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+    - name: 📆 Set CURRENT_DATE (KST 기준)
+      run: echo "CURRENT_DATE=$(TZ=Asia/Seoul date +'%Y-%m-%d')" >> $GITHUB_ENV
 
     - name: 🧹 Delete old output files
       run: rm -f output/events_*.json || true
@@ -25,23 +29,15 @@ jobs:
         python-version: '3.10'
 
     - name: 🧪 Install dependencies
-      run: pip install -r requirements.txt
+      run: |
+        pip install -r requirements.txt
 
     - name: 🚀 Run SmartChip crawler
       run: |
         python utils/races_crawler.py ${{ env.CURRENT_DATE }}
 
-    - name: 📁 Move file to output folder
-      run: |
-        mkdir -p output
-        mv events_${{ env.CURRENT_DATE }}.json output/
-
-    - name: ✅ Commit and push result
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add output/events_${{ env.CURRENT_DATE }}.json
-        git commit -m "Add events_${{ env.CURRENT_DATE }}.json"
-        git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: 💾 Upload today's result
+      uses: actions/upload-artifact@v3
+      with:
+        name: smartchip-events-${{ env.CURRENT_DATE }}
+        path: output/events_${{ env.CURRENT_DATE }}.json
