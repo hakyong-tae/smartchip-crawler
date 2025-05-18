@@ -2,7 +2,7 @@ name: Daily SmartChip Race Crawler
 
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * *'  # 매일 오전 11시 KST
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   crawl:
-    runs-on: ubuntu-22.04  # ✅ 이걸로 되돌림
+    runs-on: ubuntu-22.04
 
     steps:
     - name: 📦 Checkout repository
@@ -37,7 +37,7 @@ jobs:
         python utils/races_crawler.py ${{ env.CURRENT_DATE }}
 
     - name: 💾 Upload today's result
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@f9a31e7e3e3b06f4bfb1e94cf8b9e1d7f9db1c8d
       with:
         name: smartchip-events-${{ env.CURRENT_DATE }}
         path: events_${{ env.CURRENT_DATE }}.json
