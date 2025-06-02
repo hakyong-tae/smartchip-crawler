@@ -1,0 +1,10 @@
+flask
+flask-cors
+requests
+beautifulsoup4
+lxml
+selenium
+webdriver_manager
+pytz
+fastapi
+uvicorn
